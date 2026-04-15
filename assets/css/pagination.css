@@ -18,7 +18,7 @@
     height: 40px;
     padding: 0 14px;
     border-radius: 10px;
-    color: rgba(31, 45, 61, 0.78);
+    color: inherit;
     font-size: 0.9rem;
     font-weight: 500;
     text-decoration: none;
@@ -28,7 +28,6 @@
 .pagination-link:hover,
 .pagination-page:hover {
     background: rgba(140, 89, 59, 0.1);
-    color: #8c593b;
 }
 
 .pagination-prev,
@@ -38,12 +37,11 @@
 
 .pagination-page.is-active {
     background: #8c593b;
-    color: #fff;
+    color: inherit;
 }
 
 .pagination-page.is-active:hover {
     background: #8c593b;
-    color: #fff;
 }
 
 .pagination-link.is-disabled,
@@ -83,12 +81,12 @@
 [data-theme='dark'] .pagination-link:hover,
 [data-theme='dark'] .pagination-page:hover {
     background: rgba(214, 175, 123, 0.18);
-    color: #e3bf96;
+}
 }
 
 [data-theme='dark'] .pagination-page.is-active {
     background: #8c593b;
-    color: #fff;
+    color: inherit;
 }
 
 [data-theme='dark'] .pagination-link.is-disabled,
