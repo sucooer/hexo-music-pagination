@@ -5,12 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.version.outputs.new_version }}
-      has_changes: ${{ steps.version.outputs.has_changes }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           token: ${{ secrets.GITHUB_TOKEN }}
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -101,7 +101,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           token: ${{ secrets.GITHUB_TOKEN }}
           token: ${{ secrets.GITHUB_TOKEN }}
