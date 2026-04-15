@@ -22,8 +22,6 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-          token: ${{ secrets.GITHUB_TOKEN }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: npm install
@@ -103,8 +101,6 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-          token: ${{ secrets.GITHUB_TOKEN }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install dependencies
         run: npm install
