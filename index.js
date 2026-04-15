@@ -54,6 +54,8 @@ hexo.extend.generator.register('music-pagination', async function () {
 
   const { pages } = calculatePages(processedEntries, perPage, routePrefix)
 
+  setDefaultTemplate(hexo)
+
   const results = []
   for (const page of pages) {
     const pageData = {
@@ -63,7 +65,8 @@ hexo.extend.generator.register('music-pagination', async function () {
 
     let content
     try {
-      content = await hexo.render.render({ layout: 'music-page' }, pageData)
+      const pageContent = getEmbeddedTemplate()
+      content = await hexo.render.render({ text: pageContent, engine: 'ejs' }, pageData)
     } catch (e) {
       content = ''
     }
@@ -103,7 +106,9 @@ function setDefaultTemplate(hexo) {
     templateContent = getEmbeddedTemplate()
   }
 
-  hexo.theme.setView(templateName, templateContent)
+  if (!hexo.theme.getView(templateName)) {
+    hexo.theme.setView(templateName, templateContent)
+  }
 }
 
 function getEmbeddedTemplate() {
@@ -243,15 +248,30 @@ const getAudioMime = (src, audioType) => {
       <a href="<%= pagination.prevPage %>" class="pagination-link pagination-prev"><span>上一页</span></a>
     <% } %>
     <div class="pagination-pages">
-      <% for (let i = 1; i <= pagination.totalPages; i++) { %>
-        <% if (i === 1) { %>
-          <a href="/music/" class="pagination-page<%= pagination.currentPage === 1 ? ' is-active' : '' %>">1</a>
-        <% } else if (i === pagination.currentPage) { %>
-          <span class="pagination-page is-active"><%= i %></span>
-        <% } else if (i === 2 || i === pagination.totalPages) { %>
-          <a href="/music/page/<%= i %>/" class="pagination-page"><%= i %></a>
-        <% } else if (i === 3) { %>
+      <% 
+        const total = pagination.totalPages
+        const current = pagination.currentPage
+        const showPage = (i) => {
+          if (i < 1 || i > total) return false
+          return i === 1 || i === total || Math.abs(i - current) <= 1
+        }
+        const showEllipsis = (i) => {
+          if (i <= 1 || i >= total) return false
+          return i === 2 && current > 3 || i === total - 1 && current < total - 2
+        }
+        let prevShown = false
+      %>
+      <% for (let i = 1; i <= total; i++) { %>
+        <% if (showEllipsis(i) && !prevShown) { %>
           <span class="pagination-ellipsis">...</span>
+          <% prevShown = true %>
+        <% } else if (showPage(i)) { %>
+          <% prevShown = false %>
+          <% if (i === current) { %>
+            <span class="pagination-page is-active"><%= i %></span>
+          <% } else { %>
+            <a href="/music<%= i === 1 ? '/' : '/page/' + i + '/' %>" class="pagination-page"><%= i %></a>
+          <% } %>
         <% } %>
       <% } %>
     </div>
