@@ -1,6 +1,6 @@
 {
   "name": "hexo-music-pagination",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "Hexo plugin for music time flow page with pagination, auto lyrics and cover fetching",
   "main": "index.js",
   "scripts": {
