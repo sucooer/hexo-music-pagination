@@ -60,7 +60,10 @@ hexo.extend.generator.register('music-pagination', async function () {
   for (const page of pages) {
     const pageData = {
       musicEntries: page.entries,
-      pagination: page.pagination
+      pagination: page.pagination,
+      musicConfig: {
+        metingApi
+      }
     }
 
     let content
@@ -195,6 +198,17 @@ const getAudioMime = (src, audioType) => {
                   <% if (lyricLines.length) { %>
                     <script type="application/json" data-player-lyrics-source><%- JSON.stringify(lyricLines) %></script>
                   <% } %>
+                  <div class="music-daily-art-stack" aria-hidden="true">
+                    <div class="music-daily-vinyl">
+                      <span class="music-daily-artwork">
+                        <% if (hasText(entry.coverSrc)) { %>
+                          <img class="music-daily-artwork-image" src="<%= entry.coverSrc %>" alt="<%= entry.title %> 封面" referrerpolicy="no-referrer">
+                        <% } %>
+                        <span class="music-daily-artwork-overlay"></span>
+                        <span class="music-daily-artwork-outline"></span>
+                      </span>
+                    </div>
+                  </div>
                   <button class="music-daily-vinyl-trigger" type="button" data-player-toggle>
                     <span class="music-daily-vinyl-badge" data-player-icon><i class="fa-solid fa-play"></i></span>
                   </button>
@@ -202,6 +216,7 @@ const getAudioMime = (src, audioType) => {
                     <span><%= entry.coverKicker %></span>
                     <strong><%= entry.title %></strong>
                     <small><%= entry.artist %></small>
+                    <em class="music-daily-cover-lyric is-placeholder" data-player-lyric>轻触唱片开始播放</em>
                     <em class="music-daily-cover-status" data-player-status></em>
                   </div>
                 </div>
@@ -213,7 +228,15 @@ const getAudioMime = (src, audioType) => {
                     <small><%= entry.artist %></small>
                   </div>
                   <div class="music-daily-platform-player" data-platform-player>
-                    <div class="aplayer" data-id="<%= platform.id %>" data-server="<%= platform.server %>" data-type="<%= platform.type %>"></div>
+                    <div class="aplayer"
+                      data-id="<%= platform.id %>"
+                      data-server="<%= platform.server %>"
+                      data-type="<%= platform.type %>"
+                      data-api="<%= platform.api || musicConfig.metingApi %>"
+                      data-auth="<%= platform.auth || '' %>"
+                      data-title="<%= entry.title %>"
+                      data-artist="<%= entry.artist %>"
+                      data-cover="<%= entry.coverSrc || '' %>"></div>
                   </div>
                 </div>
               <% } else { %>
@@ -280,5 +303,224 @@ const getAudioMime = (src, audioType) => {
     <% } %>
   </nav>
   <% } %>
-</div>`
+</div>
+<script data-pjax>
+(() => {
+  const state = window.__musicDailyPageState || (window.__musicDailyPageState = {
+    bound: false,
+    activeAudio: null,
+    platformRequests: new Map()
+  })
+
+  const DEFAULT_METING_API = <%- JSON.stringify((musicConfig && musicConfig.metingApi) || 'https://api.i-meto.com/meting/api') %>
+
+  const setToggleIcon = (icon, isPlaying) => {
+    if (!icon) return
+    icon.innerHTML = isPlaying
+      ? '<i class="fa-solid fa-pause"></i>'
+      : '<i class="fa-solid fa-play"></i>'
+  }
+
+  const setLyricText = (lyricEl, text, isPlaceholder) => {
+    if (!lyricEl) return
+    lyricEl.textContent = text
+    lyricEl.classList.toggle('is-placeholder', !!isPlaceholder)
+  }
+
+  const parseLyricsFromCover = (cover) => {
+    const source = cover.querySelector('[data-player-lyrics-source]')
+    if (!source) return []
+
+    try {
+      const payload = JSON.parse(source.textContent || '[]')
+      return Array.isArray(payload) ? payload : []
+    } catch (error) {
+      return []
+    }
+  }
+
+  const bindDirectPlayer = (cover) => {
+    if (!cover || cover.dataset.playerBound === 'true') return
+    cover.dataset.playerBound = 'true'
+
+    const audio = cover.querySelector('audio')
+    const toggle = cover.querySelector('[data-player-toggle]')
+    const icon = cover.querySelector('[data-player-icon]')
+    const status = cover.querySelector('[data-player-status]')
+    const lyric = cover.querySelector('[data-player-lyric]')
+    const lyrics = parseLyricsFromCover(cover)
+
+    if (!audio || !toggle) return
+
+    const updateLyric = () => {
+      if (!lyric) return
+      if (!lyrics.length) {
+        setLyricText(lyric, audio.paused ? '轻触唱片开始播放' : '播放中', audio.paused)
+        return
+      }
+
+      let current = null
+      for (const line of lyrics) {
+        if (typeof line.time === 'number' && line.time <= audio.currentTime) current = line
+        else break
+      }
+
+      if (current && current.text) {
+        setLyricText(lyric, current.text, false)
+      } else {
+        setLyricText(lyric, audio.paused ? '轻触唱片开始播放' : '前奏响起中...', !audio.paused ? false : true)
+      }
+    }
+
+    const updateState = (isPlaying) => {
+      cover.classList.toggle('is-playing', isPlaying)
+      setToggleIcon(icon, isPlaying)
+      if (status) status.textContent = isPlaying ? '播放中' : ''
+      updateLyric()
+    }
+
+    toggle.addEventListener('click', async () => {
+      if (audio.paused) {
+        if (state.activeAudio && state.activeAudio !== audio) {
+          state.activeAudio.pause()
+        }
+
+        try {
+          await audio.play()
+          state.activeAudio = audio
+        } catch (error) {
+          if (status) status.textContent = '播放失败，请检查音频链接'
+        }
+      } else {
+        audio.pause()
+      }
+    })
+
+    audio.addEventListener('play', () => updateState(true))
+    audio.addEventListener('pause', () => updateState(false))
+    audio.addEventListener('ended', () => updateState(false))
+    audio.addEventListener('timeupdate', updateLyric)
+    audio.addEventListener('loadedmetadata', updateLyric)
+    audio.addEventListener('error', () => {
+      if (status) status.textContent = '音频资源不可用'
+      setLyricText(lyric, '音频资源不可用', true)
+      updateState(false)
+    })
+
+    updateState(false)
+  }
+
+  const buildPlatformApiUrl = (node) => {
+    const server = node.dataset.server || ''
+    const type = node.dataset.type || ''
+    const id = node.dataset.id || ''
+    const auth = node.dataset.auth || ''
+    const api = node.dataset.api || DEFAULT_METING_API
+    if (!server || !type || !id || !api) return ''
+
+    if (/:(server|type|id|auth|r)\b/.test(api)) {
+      return api
+        .replace(/:server\b/g, encodeURIComponent(server))
+        .replace(/:type\b/g, encodeURIComponent(type))
+        .replace(/:id\b/g, encodeURIComponent(id))
+        .replace(/:auth\b/g, encodeURIComponent(auth))
+        .replace(/:r\b/g, String(Math.random()))
+    }
+
+    try {
+      const url = new URL(api, window.location.origin)
+      url.searchParams.set('server', server)
+      url.searchParams.set('type', type)
+      url.searchParams.set('id', id)
+      if (auth) url.searchParams.set('auth', auth)
+      url.searchParams.set('r', String(Math.random()))
+      return url.toString()
+    } catch (error) {
+      return ''
+    }
+  }
+
+  const normalizePlatformAudio = (payload, node) => {
+    const item = Array.isArray(payload) ? payload[0] : payload
+    if (!item || typeof item !== 'object') return null
+
+    const url = item.url || item.src || item.music || ''
+    if (!url) return null
+
+    return {
+      name: item.name || node.dataset.title || '未命名歌曲',
+      artist: item.artist || item.author || node.dataset.artist || '',
+      url,
+      cover: item.pic || item.cover || item.image || node.dataset.cover || '',
+      lrc: item.lrc || item.lyric || ''
+    }
+  }
+
+  const bindPlatformPlayer = async (node) => {
+    if (!node || node.dataset.playerBound === 'true') return
+    node.dataset.playerBound = 'true'
+
+    if (typeof window.APlayer !== 'function') {
+      node.dataset.playerBound = 'false'
+      return
+    }
+
+    const requestUrl = buildPlatformApiUrl(node)
+    if (!requestUrl) return
+
+    if (!state.platformRequests.has(requestUrl)) {
+      state.platformRequests.set(requestUrl, fetch(requestUrl).then((response) => {
+        if (!response.ok) return null
+        return response.json()
+      }).catch(() => null))
+    }
+
+    const payload = await state.platformRequests.get(requestUrl)
+    const audio = normalizePlatformAudio(payload, node)
+    if (!audio) {
+      node.innerHTML = '<div class="music-daily-cover-status music-daily-cover-status--platform">播放器加载失败，请检查平台 ID 或 API 配置</div>'
+      return
+    }
+
+    node.innerHTML = ''
+    try {
+      new window.APlayer({
+        container: node,
+        mini: false,
+        autoplay: false,
+        theme: '#8c593b',
+        loop: 'none',
+        order: 'list',
+        preload: 'metadata',
+        volume: 0.7,
+        lrcType: audio.lrc ? 3 : 0,
+        audio: [audio]
+      })
+    } catch (error) {
+      node.innerHTML = '<div class="music-daily-cover-status music-daily-cover-status--platform">播放器初始化失败</div>'
+    }
+  }
+
+  const initPlayers = () => {
+    document.querySelectorAll('[data-daily-player]').forEach(bindDirectPlayer)
+
+    if (typeof window.APlayer === 'function') {
+      document.querySelectorAll('.music-daily-platform-player .aplayer').forEach((node) => {
+        bindPlatformPlayer(node)
+      })
+    }
+  }
+
+  if (!state.bound && window.btf && typeof window.btf.addGlobalFn === 'function') {
+    window.btf.addGlobalFn('pjaxComplete', initPlayers, 'musicDailyPageInit')
+    state.bound = true
+  }
+
+  if (document.readyState === 'complete') {
+    setTimeout(initPlayers, 0)
+  } else {
+    window.addEventListener('load', initPlayers, { once: true })
+  }
+})()
+</script>`
 }
