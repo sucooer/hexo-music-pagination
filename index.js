@@ -312,7 +312,7 @@ const getAudioMime = (src, audioType) => {
     platformRequests: new Map()
   })
 
-  const DEFAULT_METING_API = <%- JSON.stringify((musicConfig && musicConfig.metingApi) || 'https://api.i-meto.com/meting/api') %>
+  const DEFAULT_METING_API = <%- JSON.stringify((musicConfig && musicConfig.metingApi) || 'https://api.injahow.cn/meting/api') %>
 
   const setToggleIcon = (icon, isPlaying) => {
     if (!icon) return

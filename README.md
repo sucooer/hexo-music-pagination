@@ -30,7 +30,7 @@ music_pagination:
   auto_lyrics: true         # 自动获取歌词
   auto_cover: true         # 自动获取封面
   lyrics_api: https://lrclib.net/api/
-  meting_api: https://api.i-meto.com/meting/api
+  meting_api: https://api.injahow.cn/meting/api
   carousel_limit: 10        # 首页轮播显示条数
 ```
 
